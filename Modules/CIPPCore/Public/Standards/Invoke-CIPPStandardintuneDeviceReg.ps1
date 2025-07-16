@@ -25,10 +25,11 @@ function Invoke-CIPPStandardintuneDeviceReg {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/list-standards/intune-standards#medium-impact
+        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
     #>
 
     param($Tenant, $Settings)
+    Test-CIPPStandardLicense -StandardName 'intuneDeviceReg' -TenantFilter $Tenant -RequiredCapabilities @('INTUNE_A', 'MDM_Services', 'EMS', 'SCCM', 'MICROSOFTINTUNEPLAN1')
     ##$Rerun -Type Standard -Tenant $Tenant -Settings $Settings 'intuneDeviceReg'
 
     $PreviousSetting = New-GraphGetRequest -uri 'https://graph.microsoft.com/beta/policies/deviceRegistrationPolicy' -tenantid $Tenant
@@ -41,7 +42,7 @@ function Invoke-CIPPStandardintuneDeviceReg {
         } else {
             try {
                 $PreviousSetting.userDeviceQuota = $Settings.max
-                $Newbody = ConvertTo-Json -Compress -InputObject $PreviousSetting -Depth 5
+                $NewBody = ConvertTo-Json -Compress -InputObject $PreviousSetting -Depth 5
                 $null = New-GraphPostRequest -tenantid $tenant -Uri 'https://graph.microsoft.com/beta/policies/deviceRegistrationPolicy' -Type PUT -Body $NewBody -ContentType 'application/json'
                 Write-LogMessage -API 'Standards' -tenant $tenant -message "Set user device quota to $($Settings.max)" -sev Info
             } catch {
@@ -56,12 +57,14 @@ function Invoke-CIPPStandardintuneDeviceReg {
         if ($StateIsCorrect -eq $true) {
             Write-LogMessage -API 'Standards' -tenant $tenant -message "User device quota is set to $($Settings.max)" -sev Info
         } else {
-            Write-LogMessage -API 'Standards' -tenant $tenant -message "User device quota is not set to $($Settings.max)" -sev Alert
+            Write-StandardsAlert -message "User device quota is not set to $($Settings.max)" -object $PreviousSetting -tenant $tenant -standardName 'intuneDeviceReg' -standardId $Settings.standardId
+            Write-LogMessage -API 'Standards' -tenant $tenant -message "User device quota is not set to $($Settings.max)" -sev Info
         }
     }
 
     if ($Settings.report -eq $true) {
-
+        $state = $StateIsCorrect ? $true : $PreviousSetting.userDeviceQuota
+        Set-CIPPStandardsCompareField -FieldName 'standards.intuneDeviceReg' -FieldValue $state -TenantFilter $Tenant
         Add-CIPPBPAField -FieldName 'intuneDeviceReg' -FieldValue $StateIsCorrect -StoreAs bool -Tenant $tenant
     }
 }

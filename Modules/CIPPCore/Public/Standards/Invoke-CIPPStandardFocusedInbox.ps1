@@ -25,10 +25,11 @@ function Invoke-CIPPStandardFocusedInbox {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/list-standards/exchange-standards#low-impact
+        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
     #>
 
     param($Tenant, $Settings)
+    Test-CIPPStandardLicense -StandardName 'FocusedInbox' -TenantFilter $Tenant -RequiredCapabilities @('EXCHANGE_S_STANDARD', 'EXCHANGE_S_ENTERPRISE', 'EXCHANGE_LITE') #No Foundation because that does not allow powershell access
     ##$Rerun -Type Standard -Tenant $Tenant -Settings $Settings 'FocusedInbox'
 
     # Get state value using null-coalescing operator
@@ -66,11 +67,14 @@ function Invoke-CIPPStandardFocusedInbox {
         if ($StateIsCorrect -eq $true) {
             Write-LogMessage -API 'Standards' -tenant $Tenant -message "Focused Inbox is set to $state." -sev Info
         } else {
-            Write-LogMessage -API 'Standards' -tenant $Tenant -message "Focused Inbox is not set to $state." -sev Alert
+            Write-StandardsAlert -message "Focused Inbox is not set to $state" -object $CurrentState -tenant $Tenant -standardName 'FocusedInbox' -standardId $Settings.standardId
+            Write-LogMessage -API 'Standards' -tenant $Tenant -message "Focused Inbox is not set to $state." -sev Info
         }
     }
 
     if ($Settings.report -eq $true) {
+
+        Set-CIPPStandardsCompareField -FieldName 'standards.FocusedInbox' -FieldValue $StateIsCorrect -TenantFilter $Tenant
         Add-CIPPBPAField -FieldName 'FocusedInboxCorrectState' -FieldValue $StateIsCorrect -StoreAs bool -Tenant $Tenant
     }
 }

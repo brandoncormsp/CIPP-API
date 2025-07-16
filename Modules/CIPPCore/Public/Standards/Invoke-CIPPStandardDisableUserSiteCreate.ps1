@@ -24,10 +24,11 @@ function Invoke-CIPPStandardDisableUserSiteCreate {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/list-standards/sharepoint-standards#high-impact
+        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
     #>
 
     param($Tenant, $Settings)
+    Test-CIPPStandardLicense -StandardName 'DisableUserSiteCreate' -TenantFilter $Tenant -RequiredCapabilities @('SHAREPOINTWAC', 'SHAREPOINTSTANDARD', 'SHAREPOINTENTERPRISE', 'ONEDRIVE_BASIC', 'ONEDRIVE_ENTERPRISE')
     ##$Rerun -Type Standard -Tenant $Tenant -Settings $Settings 'DisableUserSiteCreate'
 
     $CurrentInfo = New-GraphGetRequest -Uri 'https://graph.microsoft.com/beta/admin/sharepoint/settings' -tenantid $Tenant -AsApp $true
@@ -54,11 +55,14 @@ function Invoke-CIPPStandardDisableUserSiteCreate {
         if ($CurrentInfo.isSiteCreationEnabled -eq $false -and $CurrentInfo.isSiteCreationUIEnabled -eq $false) {
             Write-LogMessage -API 'Standards' -tenant $tenant -message 'Standard users are not allowed to create sites and UI setting is disabled' -sev Info
         } else {
-            Write-LogMessage -API 'Standards' -tenant $tenant -message 'Standard users are allowed to create sites or UI setting is enabled' -sev Alert
+            Write-StandardsAlert -message 'Standard users are allowed to create sites or UI setting is enabled' -object $CurrentInfo -tenant $tenant -standardName 'DisableUserSiteCreate' -standardId $Settings.standardId
+            Write-LogMessage -API 'Standards' -tenant $tenant -message 'Standard users are allowed to create sites or UI setting is enabled' -sev Info
         }
     }
 
     if ($Settings.report -eq $true) {
+        $state = $CurrentInfo.isSiteCreationEnabled -and $CurrentInfo.isSiteCreationUIEnabled ? ($CurrentInfo | Select-Object isSiteCreationEnabled, isSiteCreationUIEnabled) : $true
+        Set-CIPPStandardsCompareField -FieldName 'standards.DisableUserSiteCreate' -FieldValue $State -Tenant $tenant
         Add-CIPPBPAField -FieldName 'DisableUserSiteCreate' -FieldValue $CurrentInfo.isSiteCreationEnabled -StoreAs bool -Tenant $tenant
         Add-CIPPBPAField -FieldName 'DisableUserSiteCreateUI' -FieldValue $CurrentInfo.isSiteCreationUIEnabled -StoreAs bool -Tenant $tenant
     }

@@ -25,10 +25,11 @@ function Invoke-CIPPStandardAntiSpamSafeList {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/list-standards/defender-standards#medium-impact
+        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
     #>
 
     param($Tenant, $Settings)
+    Test-CIPPStandardLicense -StandardName 'AntiSpamSafeList' -TenantFilter $Tenant -RequiredCapabilities @('EXCHANGE_S_STANDARD', 'EXCHANGE_S_ENTERPRISE', 'EXCHANGE_LITE') #No Foundation because that does not allow powershell access
     ##$Rerun -Type Standard -Tenant $Tenant -Settings $Settings 'AntiSpamSafeList'
 
     try {
@@ -49,6 +50,7 @@ function Invoke-CIPPStandardAntiSpamSafeList {
     $StateIsCorrect = if ($CurrentState -eq $WantedState) { $true } else { $false }
 
     if ($Settings.report -eq $true) {
+        Set-CIPPStandardsCompareField -FieldName 'standards.AntiSpamSafeList' -FieldValue $StateIsCorrect -TenantFilter $Tenant
         Add-CIPPBPAField -FieldName 'AntiSpamSafeList' -FieldValue $CurrentState -StoreAs bool -Tenant $Tenant
     }
 
@@ -74,7 +76,8 @@ function Invoke-CIPPStandardAntiSpamSafeList {
         if ($StateIsCorrect -eq $true) {
             Write-LogMessage -API 'Standards' -tenant $Tenant -message "The Anti-Spam Connection Filter Safe List is set correctly to $WantedState" -sev Info
         } else {
-            Write-LogMessage -API 'Standards' -tenant $Tenant -message "The Anti-Spam Connection Filter Safe List is not set correctly to $WantedState" -sev Alert
+            Write-StandardsAlert -message "The Anti-Spam Connection Filter Safe List is not set correctly to $WantedState" -object @{CurrentState = $CurrentState; WantedState = $WantedState } -tenant $Tenant -standardName 'AntiSpamSafeList' -standardId $Settings.standardId
+            Write-LogMessage -API 'Standards' -tenant $Tenant -message "The Anti-Spam Connection Filter Safe List is not set correctly to $WantedState" -sev Info
         }
     }
 }
